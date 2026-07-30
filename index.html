@@ -718,37 +718,21 @@ document.getElementById("btnSubmit").addEventListener("click", async () => {
   }
 });
 
-async function submitRating(payload){
-  if(CONFIG.GITHUB_TOKEN.startsWith("PASTE_")){
-    console.warn("GitHub token not configured — rating not sent:", payload);
-    return true; // allow preview flow to complete without a real backend
-  }
-  try{
-    const body = {
-      title: `Rating: ${payload.company} — ${payload.rating}/5`,
-      body: [
-        `**Company:** ${payload.company}`,
-        `**Assigned rep (DFN):** ${payload.dfn}`,
-        `**Submitted by:** ${payload.email}`,
-        `**Rating:** ${payload.rating}/5`,
-        `**Comment:** ${payload.comment || "_none_"}`,
-        `**Timestamp:** ${new Date().toISOString()}`
-      ].join("\n"),
-      labels: ["rating"]
-    };
-    const res = await fetch(`https://api.github.com/repos/${CONFIG.GITHUB_OWNER}/${CONFIG.GITHUB_REPO}/issues`, {
-      method: "POST",
-      headers: {
-        "Authorization": `token ${CONFIG.GITHUB_TOKEN}`,
-        "Accept": "application/vnd.github+json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
+async function submitRating(payload) {
+
+    const res = await fetch(
+        "https://customer-rating-api.flexnowww.workers.dev/",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        }
+    );
+
     return res.ok;
-  }catch(e){
-    return false;
-  }
+
 }
 
 /* ---- Screen 5: restart ---- */
