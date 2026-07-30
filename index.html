@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Edge — Service Rating</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-black:#0A0C10;
+    --panel:#12151C;
+    --panel-2:#171B24;
+    --hairline:#242A35;
+    --tata-blue:#0C6CD6;
+    --cluster-cyan:#29F1E0;
+    --warn-amber:#FFB020;
+    --danger:#FF5C5C;
+    --success:#34D399;
+    --text-primary:#EDF2F7;
+    --text-muted:#7A8493;
+    --text-dim:#4A5261;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg-black);
+    color:var(--text-primary);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow-x:hidden;
+    position:relative;
+    padding:24px;
+  }
+
+  /* ambient headlight-style glow blobs */
+  body::before, body::after{
+    content:'';
+    position:fixed;
+    width:60vw;
+    height:60vw;
+    border-radius:50%;
+    filter:blur(120px);
+    opacity:0.16;
+    z-index:0;
+    pointer-events:none;
+  }
+  body::before{
+    background:var(--tata-blue);
+    top:-20%; left:-15%;
+  }
+  body::after{
+    background:var(--cluster-cyan);
+    bottom:-25%; right:-15%;
+    opacity:0.10;
+  }
+
+  /* faint carbon-weave texture */
+  .stage{
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width:480px;
+  }
+
+  .cluster-panel{
+    position:relative;
+    background:
+      radial-gradient(120% 140% at 50% -20%, rgba(12,108,214,0.10), transparent 55%),
+      linear-gradient(180deg, var(--panel), #0E1015);
+    border:1px solid var(--hairline);
+    border-radius:20px;
+    padding:28px 26px 26px;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.02) inset,
+      0 30px 60px -20px rgba(0,0,0,0.6),
+      0 0 40px -10px rgba(41,241,224,0.05);
+  }
+
+  /* bezel rivets, subtle */
+  .cluster-panel::before{
+    content:'';
+    position:absolute;
+    inset:8px;
+    border:1px solid rgba(255,255,255,0.03);
+    border-radius:14px;
+    pointer-events:none;
+  }
+
+  .brand-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:22px;
+  }
+  .brand{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .brand .mark{
+    font-family:'Rajdhani',sans-serif;
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:0.16em;
+    color:var(--tata-blue);
+  }
+  .brand .product{
+    font-family:'Rajdhani',sans-serif;
+    font-weight:600;
+    font-size:19px;
+    letter-spacing:0.03em;
+    color:var(--text-primary);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .brand .product .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--cluster-cyan);
+    box-shadow:0 0 8px 1px var(--cluster-cyan);
+  }
+  .ignition{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--text-dim);
+    letter-spacing:0.05em;
+  }
+
+  /* step ticks — like a fuel/temp gauge with 4 marks */
+  .step-gauge{
+    display:flex;
+    gap:6px;
+    margin-bottom:24px;
+  }
+  .step-gauge .tick{
+    flex:1;
+    height:3px;
+    border-radius:2px;
+    background:var(--hairline);
+    position:relative;
+    overflow:hidden;
+    transition:background 0.4s ease;
+  }
+  .step-gauge .tick.done{ background:var(--tata-blue); }
+  .step-gauge .tick.active{ background:var(--hairline); }
+  .step-gauge .tick.active::after{
+    content:'';
+    position:absolute; inset:0;
+    background:var(--cluster-cyan);
+    animation:sweep 1.4s ease-in-out infinite;
+  }
+  @keyframes sweep{
+    0%{ transform:translateX(-100%); }
+    50%{ transform:translateX(0); }
+    100%{ transform:translateX(100%); }
+  }
+
+  .screen{ animation:fadeIn 0.35s ease; }
+  .screen[hidden]{ display:none; }
+  @keyframes fadeIn{
+    from{ opacity:0; transform:translateY(6px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.14em;
+    color:var(--cluster-cyan);
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  h1{
+    font-family:'Rajdhani',sans-serif;
+    font-weight:600;
+    font-size:22px;
+    line-height:1.3;
+    color:var(--text-primary);
+    margin-bottom:6px;
+  }
+  .sub{
+    font-size:13px;
+    color:var(--text-muted);
+    line-height:1.5;
+    margin-bottom:20px;
+  }
+
+  .field{
+    position:relative;
+    margin-bottom:14px;
+  }
+  input[type="text"], input[type="email"], textarea{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--hairline);
+    border-radius:10px;
+    padding:14px 16px;
+    color:var(--text-primary);
+    font-family:'Inter',sans-serif;
+    font-size:14.5px;
+    outline:none;
+    transition:border-color 0.2s, box-shadow 0.2s;
+  }
+  textarea{ resize:vertical; min-height:80px; font-family:'Inter',sans-serif; }
+  input::placeholder, textarea::placeholder{ color:var(--text-dim); }
+  input:focus, textarea:focus{
+    border-color:var(--cluster-cyan);
+    box-shadow:0 0 0 3px rgba(41,241,224,0.12);
+  }
+
+  .results{
+    max-height:220px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    margin-top:10px;
+  }
+  .results::-webkit-scrollbar{ width:6px; }
+  .results::-webkit-scrollbar-thumb{ background:var(--hairline); border-radius:4px; }
+
+  .result-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--panel-2);
+    border:1px solid var(--hairline);
+    border-radius:10px;
+    padding:12px 14px;
+    cursor:pointer;
+    transition:border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+  .result-row:hover{
+    border-color:var(--tata-blue);
+    background:#151a24;
+  }
+  .result-row:active{ transform:scale(0.99); }
+  .result-row .name{ font-size:14px; font-weight:500; }
+  .result-row .arrow{ color:var(--text-dim); font-size:13px; }
+  .empty-hint{
+    font-size:12.5px;
+    color:var(--text-dim);
+    padding:10px 2px;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  .selected-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(12,108,214,0.12);
+    border:1px solid rgba(12,108,214,0.35);
+    color:var(--text-primary);
+    padding:8px 12px;
+    border-radius:8px;
+    font-size:13px;
+    margin-bottom:18px;
+  }
+  .selected-chip .lbl{ color:var(--text-muted); font-size:11px; }
+
+  .btn{
+    width:100%;
+    padding:14px 16px;
+    border-radius:10px;
+    border:none;
+    font-family:'Rajdhani',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    letter-spacing:0.04em;
+    cursor:pointer;
+    transition:filter 0.15s, transform 0.1s;
+  }
+  .btn:active{ transform:scale(0.985); }
+  .btn-primary{
+    background:linear-gradient(180deg, #1178E8, var(--tata-blue));
+    color:#fff;
+    box-shadow:0 6px 20px -6px rgba(12,108,214,0.6);
+  }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-primary:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+    box-shadow:none;
+  }
+  .btn-ghost{
+    background:transparent;
+    border:1px solid var(--hairline);
+    color:var(--text-muted);
+    margin-top:10px;
+  }
+  .btn-ghost:hover{ border-color:var(--text-dim); color:var(--text-primary); }
+
+  .error-msg{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(255,92,92,0.08);
+    border:1px solid rgba(255,92,92,0.3);
+    color:var(--danger);
+    font-size:12.5px;
+    padding:10px 12px;
+    border-radius:8px;
+    margin-bottom:14px;
+  }
+  .error-msg[hidden]{ display:none; }
+
+  /* assignee readout card */
+  .id-card{
+    background:var(--panel-2);
+    border:1px solid var(--hairline);
+    border-radius:14px;
+    padding:22px;
+    text-align:center;
+    margin-bottom:18px;
+    position:relative;
+    overflow:hidden;
+  }
+  .id-card::before{
+    content:'';
+    position:absolute;
+    top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--cluster-cyan), transparent);
+  }
+  .id-card .cap{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.16em;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .id-card .dfn-name{
+    font-family:'Rajdhani',sans-serif;
+    font-weight:700;
+    font-size:28px;
+    color:var(--cluster-cyan);
+    text-shadow:0 0 20px rgba(41,241,224,0.35);
+    letter-spacing:0.02em;
+    margin-bottom:6px;
+  }
+  .id-card .company-name{
+    font-size:13px;
+    color:var(--text-muted);
+  }
+
+  /* gauge */
+  .gauge-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:6px 0 20px;
+  }
+  .gauge-readout{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:600;
+    font-size:34px;
+    color:var(--cluster-cyan);
+    text-shadow:0 0 18px rgba(41,241,224,0.4);
+    margin-top:6px;
+    letter-spacing:0.02em;
+  }
+  .gauge-readout .of5{ font-size:15px; color:var(--text-dim); }
+  .gauge-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.14em;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+
+  .star-row{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    margin-top:14px;
+  }
+  .star-btn{
+    width:44px; height:44px;
+    border-radius:10px;
+    background:var(--panel-2);
+    border:1px solid var(--hairline);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:all 0.15s ease;
+  }
+  .star-btn svg{ width:20px; height:20px; transition:all 0.15s ease; }
+  .star-btn path{ fill:var(--text-dim); transition:fill 0.15s ease; }
+  .star-btn.filled{
+    background:rgba(255,176,32,0.10);
+    border-color:rgba(255,176,32,0.4);
+  }
+  .star-btn.filled path{ fill:var(--warn-amber); }
+  .star-btn.filled svg{ filter:drop-shadow(0 0 6px rgba(255,176,32,0.5)); }
+  .star-btn:hover{ transform:translateY(-2px); }
+
+  .comment-label{
+    font-size:12px;
+    color:var(--text-muted);
+    margin:20px 0 8px;
+    display:block;
+  }
+
+  /* done screen */
+  .done-icon{
+    width:56px; height:56px;
+    border-radius:50%;
+    background:rgba(52,211,153,0.12);
+    border:1px solid rgba(52,211,153,0.4);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:6px auto 18px;
+  }
+  .done-icon svg{ width:26px; height:26px; }
+  .center-text{ text-align:center; }
+
+  footer{
+    text-align:center;
+    margin-top:16px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--text-dim);
+    letter-spacing:0.06em;
+  }
+
+  @media (max-width:400px){
+    .cluster-panel{ padding:22px 18px 20px; }
+    .id-card .dfn-name{ font-size:24px; }
+    .gauge-readout{ font-size:28px; }
+    .star-btn{ width:38px; height:38px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="cluster-panel">
+
+    <div class="brand-row">
+      <div class="brand">
+        <span class="mark">TATA MOTORS</span>
+        <span class="product"><span class="dot"></span>Fleet Edge</span>
+      </div>
+      <span class="ignition" id="clockReadout">SERVICE RATING</span>
+    </div>
+
+    <div class="step-gauge" id="stepGauge">
+      <div class="tick active" data-step="1"></div>
+      <div class="tick" data-step="2"></div>
+      <div class="tick" data-step="3"></div>
+      <div class="tick" data-step="4"></div>
+    </div>
+
+    <!-- SCREEN 1: SEARCH -->
+    <div class="screen" id="screen-search">
+      <div class="eyebrow">Step 1 · Identify</div>
+      <h1>Which company are you with?</h1>
+      <p class="sub">Start typing your organisation's name — we'll show matches as you go.</p>
+
+      <div class="field">
+        <input type="text" id="companySearch" placeholder="e.g. Balaji, Sri Narayan..." autocomplete="off">
+      </div>
+      <div class="results" id="searchResults"></div>
+    </div>
+
+    <!-- SCREEN 2: EMAIL -->
+    <div class="screen" id="screen-email" hidden>
+      <div class="eyebrow">Step 2 · Verify</div>
+      <h1>Confirm your email</h1>
+      <p class="sub">Enter the email registered with this account to continue.</p>
+
+      <div class="selected-chip">
+        <span class="lbl">COMPANY</span>
+        <span id="chipCompanyName">—</span>
+      </div>
+
+      <div class="error-msg" id="emailError" hidden>
+        <span>⚠</span><span>That email doesn't match our records for this company.</span>
+      </div>
+
+      <div class="field">
+        <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" id="btnValidate">Verify &amp; continue</button>
+      <button class="btn btn-ghost" id="btnBackToSearch">← Choose a different company</button>
+    </div>
+
+    <!-- SCREEN 3: ASSIGNEE -->
+    <div class="screen" id="screen-assignee" hidden>
+      <div class="eyebrow">Step 3 · Assigned representative</div>
+      <h1>Here's your dedicated contact</h1>
+      <p class="sub">This is the representative you'll be rating today.</p>
+
+      <div class="id-card">
+        <div class="cap">Relationship Owner</div>
+        <div class="dfn-name" id="dfnName">—</div>
+        <div class="company-name" id="assigneeCompany">—</div>
+      </div>
+
+      <button class="btn btn-primary" id="btnToRating">Next → Rate service</button>
+    </div>
+
+    <!-- SCREEN 4: RATING -->
+    <div class="screen" id="screen-rate" hidden>
+      <div class="eyebrow">Step 4 · Feedback</div>
+      <h1>How was your experience?</h1>
+      <p class="sub">Rate <span id="rateDfnName">your representative</span> from 1 to 5 stars.</p>
+
+      <div class="gauge-wrap">
+        <div class="star-row" id="starRow">
+          <div class="star-btn" data-val="1"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg></div>
+          <div class="star-btn" data-val="2"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg></div>
+          <div class="star-btn" data-val="3"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg></div>
+          <div class="star-btn" data-val="4"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg></div>
+          <div class="star-btn" data-val="5"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg></div>
+        </div>
+        <div class="gauge-readout"><span id="ratingVal">0</span><span class="of5">/5</span></div>
+        <div class="gauge-label" id="ratingWord">Tap a star to rate</div>
+      </div>
+
+      <label class="comment-label" for="commentInput">Comments (optional)</label>
+      <textarea id="commentInput" placeholder="Anything you'd like to add..."></textarea>
+
+      <div class="error-msg" id="rateError" hidden>
+        <span>⚠</span><span>Please select a star rating before submitting.</span>
+      </div>
+
+      <button class="btn btn-primary" id="btnSubmit" style="margin-top:16px;">Submit rating</button>
+    </div>
+
+    <!-- SCREEN 5: DONE -->
+    <div class="screen" id="screen-done" hidden>
+      <div class="done-icon">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#34D399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h1 class="center-text">Thank you</h1>
+      <p class="sub center-text">Your rating has been recorded. We appreciate your feedback.</p>
+      <button class="btn btn-ghost" id="btnRestart">Submit another rating</button>
+    </div>
+
+  </div>
+  <footer>FLEET EDGE · CUSTOMER FEEDBACK CHANNEL</footer>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG — fill these in once your GitHub repo + token exist.
+   Use a FINE-GRAINED personal access token scoped to ONLY this
+   repo, with "Issues: Read and write" permission — NOT a
+   classic token with full "repo" scope. Any token here is
+   visible to anyone who views page source, so keep its
+   permissions as narrow as possible.
+   ============================================================ */
+const CONFIG = {
+  GITHUB_OWNER: "YOUR_GITHUB_USERNAME",
+  GITHUB_REPO: "YOUR_REPO_NAME",
+  GITHUB_TOKEN: "PASTE_FINE_GRAINED_TOKEN_HERE",
+  COMPANIES_JSON_PATH: "companies.json"
+};
+
+/* Placeholder fallback data — used automatically if companies.json
+   can't be fetched (e.g. in preview). Replace companies.json in
+   your repo with the real list; this array is just a safety net. */
+const PLACEHOLDER_COMPANIES = [
+  { company: "Sri Balaji Transports", dfn: "Rahul Mehta", email: "ops@sribalaji.com" },
+  { company: "Balaji Tours and Travels", dfn: "Ananya Rao", email: "contact@balajitours.com" },
+  { company: "Tours Balaji Logistics", dfn: "Vikram Singh", email: "info@toursbalaji.com" },
+  { company: "Sri Narayan Carriers", dfn: "Neha Kulkarni", email: "hello@srinarayan.com" },
+  { company: "Narayan Ashery Fleet Services", dfn: "Karan Malhotra", email: "admin@narayanashery.com" },
+  { company: "Jai Bharat Logistics", dfn: "Priya Nair", email: "team@jaibharat.com" },
+  { company: "Mahindra Freight Movers", dfn: "Arjun Verma", email: "fleet@mahindrafreight.com" }
+];
+
+let companies = [];
+let state = { company: null, dfn: null, authorizedEmail: null, verifiedEmail: null, rating: 0 };
+
+async function loadCompanies(){
+  try{
+    const res = await fetch(CONFIG.COMPANIES_JSON_PATH, { cache: "no-store" });
+    if(!res.ok) throw new Error("no json");
+    companies = await res.json();
+  }catch(e){
+    companies = PLACEHOLDER_COMPANIES;
+  }
+}
+loadCompanies();
+
+const screens = {
+  search: document.getElementById("screen-search"),
+  email: document.getElementById("screen-email"),
+  assignee: document.getElementById("screen-assignee"),
+  rate: document.getElementById("screen-rate"),
+  done: document.getElementById("screen-done"),
+};
+const ticks = document.querySelectorAll(".step-gauge .tick");
+
+function goTo(name, stepNum){
+  Object.values(screens).forEach(s => s.hidden = true);
+  screens[name].hidden = false;
+  ticks.forEach((t, i) => {
+    t.classList.remove("active","done");
+    if(i < stepNum - 1) t.classList.add("done");
+    else if(i === stepNum - 1) t.classList.add("active");
+  });
+}
+
+/* ---- Screen 1: search ---- */
+const searchInput = document.getElementById("companySearch");
+const resultsBox = document.getElementById("searchResults");
+
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim().toLowerCase();
+  resultsBox.innerHTML = "";
+  if(!q){ return; }
+  const matches = companies.filter(c => c.company.toLowerCase().includes(q)).slice(0, 8);
+  if(matches.length === 0){
+    resultsBox.innerHTML = `<div class="empty-hint">No matching company found. Check the spelling and try again.</div>`;
+    return;
+  }
+  matches.forEach(c => {
+    const row = document.createElement("div");
+    row.className = "result-row";
+    row.innerHTML = `<span class="name">${escapeHtml(c.company)}</span><span class="arrow">→</span>`;
+    row.addEventListener("click", () => selectCompany(c));
+    resultsBox.appendChild(row);
+  });
+});
+
+function selectCompany(c){
+  state.company = c.company;
+  state.dfn = c.dfn;
+  state.authorizedEmail = c.email;
+  document.getElementById("chipCompanyName").textContent = c.company;
+  document.getElementById("emailInput").value = "";
+  document.getElementById("emailError").hidden = true;
+  goTo("email", 2);
+}
+
+/* ---- Screen 2: email validation ---- */
+document.getElementById("btnBackToSearch").addEventListener("click", () => {
+  searchInput.value = "";
+  resultsBox.innerHTML = "";
+  goTo("search", 1);
+});
+
+document.getElementById("btnValidate").addEventListener("click", () => {
+  const entered = document.getElementById("emailInput").value.trim().toLowerCase();
+  const expected = (state.authorizedEmail || "").trim().toLowerCase();
+  const errBox = document.getElementById("emailError");
+  if(!entered){ errBox.hidden = false; return; }
+  if(entered === expected){
+    state.verifiedEmail = entered;
+    errBox.hidden = true;
+    document.getElementById("dfnName").textContent = state.dfn;
+    document.getElementById("assigneeCompany").textContent = state.company;
+    document.getElementById("rateDfnName").textContent = state.dfn;
+    goTo("assignee", 3);
+  }else{
+    errBox.hidden = false;
+  }
+});
+
+/* ---- Screen 3 -> 4 ---- */
+document.getElementById("btnToRating").addEventListener("click", () => {
+  goTo("rate", 4);
+});
+
+/* ---- Screen 4: gauge rating ---- */
+const stars = document.querySelectorAll(".star-btn");
+const ratingVal = document.getElementById("ratingVal");
+const ratingWord = document.getElementById("ratingWord");
+const words = ["Tap a star to rate","Poor","Fair","Good","Very good","Excellent"];
+
+stars.forEach(star => {
+  star.addEventListener("click", () => {
+    const v = parseInt(star.dataset.val, 10);
+    state.rating = v;
+    stars.forEach(s => s.classList.toggle("filled", parseInt(s.dataset.val,10) <= v));
+    ratingVal.textContent = v;
+    ratingWord.textContent = words[v];
+    document.getElementById("rateError").hidden = true;
+  });
+});
+
+document.getElementById("btnSubmit").addEventListener("click", async () => {
+  if(state.rating === 0){
+    document.getElementById("rateError").hidden = false;
+    return;
+  }
+  const comment = document.getElementById("commentInput").value.trim();
+  const btn = document.getElementById("btnSubmit");
+  btn.disabled = true;
+  btn.textContent = "Submitting...";
+
+  const ok = await submitRating({
+    company: state.company,
+    dfn: state.dfn,
+    email: state.verifiedEmail,
+    rating: state.rating,
+    comment
+  });
+
+  btn.disabled = false;
+  btn.textContent = "Submit rating";
+
+  if(ok){
+    goTo("done", 4);
+  }else{
+    alert("Couldn't submit right now. Please check your connection and try again.");
+  }
+});
+
+async function submitRating(payload){
+  if(CONFIG.GITHUB_TOKEN.startsWith("PASTE_")){
+    console.warn("GitHub token not configured — rating not sent:", payload);
+    return true; // allow preview flow to complete without a real backend
+  }
+  try{
+    const body = {
+      title: `Rating: ${payload.company} — ${payload.rating}/5`,
+      body: [
+        `**Company:** ${payload.company}`,
+        `**Assigned rep (DFN):** ${payload.dfn}`,
+        `**Submitted by:** ${payload.email}`,
+        `**Rating:** ${payload.rating}/5`,
+        `**Comment:** ${payload.comment || "_none_"}`,
+        `**Timestamp:** ${new Date().toISOString()}`
+      ].join("\n"),
+      labels: ["rating"]
+    };
+    const res = await fetch(`https://api.github.com/repos/${CONFIG.GITHUB_OWNER}/${CONFIG.GITHUB_REPO}/issues`, {
+      method: "POST",
+      headers: {
+        "Authorization": `token ${CONFIG.GITHUB_TOKEN}`,
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    return res.ok;
+  }catch(e){
+    return false;
+  }
+}
+
+/* ---- Screen 5: restart ---- */
+document.getElementById("btnRestart").addEventListener("click", () => {
+  state = { company: null, dfn: null, authorizedEmail: null, verifiedEmail: null, rating: 0 };
+  searchInput.value = "";
+  resultsBox.innerHTML = "";
+  stars.forEach(s => s.classList.remove("filled"));
+  ratingVal.textContent = "0";
+  ratingWord.textContent = "Tap a star to rate";
+  document.getElementById("commentInput").value = "";
+  goTo("search", 1);
+});
+
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
