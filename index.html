@@ -769,6 +769,15 @@ function escapeHtml(str){
   return div.innerHTML;
 }
 </script>
-
+<script>
+if (location.search.includes("debug")) {
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/eruda";
+  script.onload = () => eruda.init({
+    tool: ['console','elements','network','resources','info']
+  });
+  document.body.appendChild(script);
+}
+</script>
 </body>
 </html>
